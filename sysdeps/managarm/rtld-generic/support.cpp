@@ -21,7 +21,7 @@
 // --------------------------------------------------------
 
 HelHandle posixLane;
-HelHandle *fileTable;
+posix::PtDescriptor *fileTable;
 
 extern "C" [[gnu::visibility("hidden")]] void abort() {
 	mlibc::panicLogger() << "rtld: abort() called" << frg::endlog;
@@ -392,7 +392,7 @@ int Sysdeps<Seek>::operator()(int fd, off_t offset, int whence, off_t *new_offse
 	__ensure(whence == SEEK_SET);
 
 	cacheFileTable();
-	auto lane = fileTable[fd];
+	auto lane = __atomic_load_n(&fileTable[fd].handle, __ATOMIC_RELAXED);
 	HelAction actions[3];
 
 	managarm::fs::CntRequest<MemoryAllocator> req(getAllocator());
@@ -438,7 +438,7 @@ int Sysdeps<Seek>::operator()(int fd, off_t offset, int whence, off_t *new_offse
 
 int Sysdeps<Read>::operator()(int fd, void *data, size_t length, ssize_t *bytes_read) {
 	cacheFileTable();
-	auto lane = fileTable[fd];
+	auto lane = __atomic_load_n(&fileTable[fd].handle, __ATOMIC_RELAXED);
 	HelAction actions[5];
 
 	managarm::fs::ReadRequest<MemoryAllocator> req(getAllocator());

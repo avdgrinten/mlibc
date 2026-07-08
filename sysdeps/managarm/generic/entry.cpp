@@ -26,7 +26,7 @@ thread_local void *__mlibc_clk_tracker_page;
 namespace {
 thread_local unsigned __mlibc_gsf_nesting;
 thread_local posix::ThreadPage *__mlibc_cached_thread_page;
-thread_local HelHandle *cachedFileTable;
+thread_local posix::PtDescriptor *cachedFileTable;
 thread_local size_t cachedFileTableSize;
 
 // This construction is a bit weird: Even though the variables above
@@ -104,7 +104,7 @@ HelHandle getPosixLane() {
 	return __mlibc_posix_lane;
 }
 
-HelHandle *cacheFileTable() {
+posix::PtDescriptor *cacheFileTable() {
 	// TODO: Make sure that this is signal-safe (it is called e.g. by sys_clock_get()).
 	pthread_once(&has_cached_infos, &actuallyCacheInfos);
 	return cachedFileTable;
@@ -115,7 +115,27 @@ HelHandle getHandleForFd(int fd) {
 	if (static_cast<size_t>(fd) >= cachedFileTableSize)
 		return 0;
 
-	return cachedFileTable[fd];
+	// Reading only the handle does not require the seqlock; a relaxed load suffices.
+	return __atomic_load_n(&cachedFileTable[fd].handle, __ATOMIC_RELAXED);
+}
+
+frg::tuple<HelHandle, uint64_t> getDescriptorForFd(int fd) {
+	cacheFileTable();
+	if (static_cast<size_t>(fd) >= cachedFileTableSize)
+		return {0, 0};
+
+	auto slot = &cachedFileTable[fd];
+	HelHandle handle;
+	uint64_t apiSignature;
+	uint64_t seq;
+	// Seqlock read: retry while an update is in progress or the sequence changed.
+	do {
+		seq = __atomic_load_n(&slot->sequence, __ATOMIC_ACQUIRE);
+		handle = __atomic_load_n(&slot->handle, __ATOMIC_RELAXED);
+		apiSignature = __atomic_load_n(&slot->apiSignature, __ATOMIC_RELAXED);
+		__atomic_thread_fence(__ATOMIC_ACQUIRE);
+	} while ((seq & 1) || seq != __atomic_load_n(&slot->sequence, __ATOMIC_ACQUIRE));
+	return {handle, apiSignature};
 }
 
 size_t getFileTableSize() {

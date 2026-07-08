@@ -11,6 +11,7 @@
 #include <frg/array.hpp>
 #include <frg/optional.hpp>
 #include <frg/span.hpp>
+#include <frg/tuple.hpp>
 #include <mlibc/debug.hpp>
 #include <mlibc/sysdeps-allocator.hpp>
 #include <protocols/posix/data.hpp>
@@ -413,8 +414,9 @@ inline HelHandleResult *parseHandle(ElementHandle &element) {
 }
 
 HelHandle getPosixLane();
-HelHandle *cacheFileTable();
+posix::PtDescriptor *cacheFileTable();
 HelHandle getHandleForFd(int fd);
+frg::tuple<HelHandle, uint64_t> getDescriptorForFd(int fd);
 size_t getFileTableSize();
 void resetCancellationId();
 void setCancellationId(uint64_t event, HelHandle handle, int fd);
