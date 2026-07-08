@@ -27,6 +27,7 @@ namespace {
 thread_local unsigned __mlibc_gsf_nesting;
 thread_local posix::ThreadPage *__mlibc_cached_thread_page;
 thread_local HelHandle *cachedFileTable;
+thread_local size_t cachedFileTableSize;
 
 // This construction is a bit weird: Even though the variables above
 // are thread_local we still protect their initialization with a pthread_once_t
@@ -43,6 +44,7 @@ void actuallyCacheInfos() {
 	__mlibc_posix_lane = data.posixLane;
 	__mlibc_cached_thread_page = data.threadPage;
 	cachedFileTable = data.fileTable;
+	cachedFileTableSize = data.fileTableSize;
 	__mlibc_clk_tracker_page = data.clockTrackerPage;
 }
 } // namespace
@@ -109,10 +111,16 @@ HelHandle *cacheFileTable() {
 }
 
 HelHandle getHandleForFd(int fd) {
-	if (fd >= 512)
+	cacheFileTable();
+	if (static_cast<size_t>(fd) >= cachedFileTableSize)
 		return 0;
 
-	return cacheFileTable()[fd];
+	return cachedFileTable[fd];
+}
+
+size_t getFileTableSize() {
+	cacheFileTable();
+	return cachedFileTableSize;
 }
 
 void clearCachedInfos() { has_cached_infos = PTHREAD_ONCE_INIT; }

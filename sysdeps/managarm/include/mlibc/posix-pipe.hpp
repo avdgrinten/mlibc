@@ -415,6 +415,7 @@ inline HelHandleResult *parseHandle(ElementHandle &element) {
 HelHandle getPosixLane();
 HelHandle *cacheFileTable();
 HelHandle getHandleForFd(int fd);
+size_t getFileTableSize();
 void resetCancellationId();
 void setCancellationId(uint64_t event, HelHandle handle, int fd);
 void clearCachedInfos();

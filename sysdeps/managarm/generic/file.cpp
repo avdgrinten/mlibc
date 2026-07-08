@@ -2918,9 +2918,8 @@ int Sysdeps<SetRlimit>::operator()(int resource, const struct rlimit *limit) {
 int Sysdeps<GetRlimit>::operator()(int resource, struct rlimit *limit) {
 	switch (resource) {
 		case RLIMIT_NOFILE:
-			/* TODO: change this once we support more than 512 */
-			limit->rlim_cur = 512;
-			limit->rlim_max = 512;
+			limit->rlim_cur = getFileTableSize();
+			limit->rlim_max = getFileTableSize();
 			return 0;
 		default:
 			return EINVAL;
